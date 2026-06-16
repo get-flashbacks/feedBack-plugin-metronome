@@ -1,0 +1,7 @@
+{
+  "id": "metronome",
+  "name": "Metronome",
+  "version": "1.0.0",
+  "private": false,
+  "script": "screen.js"
+}
