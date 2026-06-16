@@ -22,7 +22,7 @@ A "Metronome" button will appear in the player controls bar when you play a song
 
 ## How It Works
 
-Rocksmith arrangements include precise beat timing data with measure markers. The plugin reads this beat data from the highway renderer and triggers a click sound and visual flash at each beat position. Downbeats (first beat of each measure) get a higher-pitched click and a brighter flash.
+an arrangements include precise beat timing data with measure markers. The plugin reads this beat data from the highway renderer and triggers a click sound and visual flash at each beat position. Downbeats (first beat of each measure) get a higher-pitched click and a brighter flash.
 
 ## License
 
