@@ -228,6 +228,17 @@ function _metTick() {
     _metFlash(isMeasure);
 }
 
+// Node-only export hook for tests; browsers fall through to the polling
+// loop + playSong wrapping below.
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = {
+        _metSettings, _metState, _metClick, _metFlash, _metBindVolumeSlider,
+        _metBindFlashCheck, _metInjectButton, _metSyncUi, _metToggle,
+        _metSetVolume, _metGetHighway, _metEnsureDrawHookInstalled, _metTick,
+    };
+    return;
+}
+
 // Register draw hook on the highway renderer for the visual flash
 _metEnsureDrawHookInstalled();
 
