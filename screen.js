@@ -7,11 +7,14 @@
 let _metAudioCtx = null;
 const MET_SETTINGS_KEY = 'slopsmithMetronomeSettings';
 const DRAW_HOOK_RETRY_DELAY_MS = 1000;
-const _metSettings = window[MET_SETTINGS_KEY] || (window[MET_SETTINGS_KEY] = {
-    enabled: false,
-    volume: 0.4,
-    flashEnabled: true,
-});
+const _metSettingsDefaults = { enabled: false, volume: 0.4, flashEnabled: true };
+let _metSettingsParsed = null;
+try { _metSettingsParsed = JSON.parse(localStorage.getItem(MET_SETTINGS_KEY) || 'null'); } catch (_e) {}
+const _metSettings = window[MET_SETTINGS_KEY] || (window[MET_SETTINGS_KEY] =
+    Object.assign({}, _metSettingsDefaults, _metSettingsParsed || {}));
+function _metSaveSettings() {
+    try { localStorage.setItem(MET_SETTINGS_KEY, JSON.stringify(_metSettings)); } catch (_e) {}
+}
 const MET_STATE_KEY = 'slopsmithMetronomeState';
 const _metState = window[MET_STATE_KEY] || (window[MET_STATE_KEY] = {
     lastBeatIdx: -1,
@@ -62,7 +65,7 @@ function _metBindFlashCheck(flashCheck) {
         flashCheck.removeEventListener('change', flashCheck._metFlashListener);
     }
     flashCheck.checked = _metSettings.flashEnabled;
-    flashCheck._metFlashListener = function() { _metSettings.flashEnabled = this.checked; };
+    flashCheck._metFlashListener = function() { _metSettings.flashEnabled = this.checked; _metSaveSettings(); };
     flashCheck.addEventListener('change', flashCheck._metFlashListener);
 }
 
@@ -140,12 +143,14 @@ function _metSyncUi() {
 
 function _metToggle() {
     _metSettings.enabled = !_metSettings.enabled;
+    _metSaveSettings();
     _metSyncUi();
     _metState.lastBeatIdx = -1;
 }
 
 function _metSetVolume(v) {
     _metSettings.volume = v / 100;
+    _metSaveSettings();
     const volLabel = document.getElementById('met-vol-label');
     if (volLabel) volLabel.textContent = v + '%';
 }
@@ -237,7 +242,7 @@ if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
         _metSettings, _metState, _metClick, _metFlash, _metBindVolumeSlider,
         _metBindFlashCheck, _metInjectButton, _metSyncUi, _metToggle,
-        _metSetVolume, _metGetHighway, _metEnsureDrawHookInstalled, _metTick,
+        _metSetVolume, _metSaveSettings, _metGetHighway, _metEnsureDrawHookInstalled, _metTick,
     };
     return;
 }

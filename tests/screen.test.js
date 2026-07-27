@@ -10,6 +10,7 @@ const path = require('node:path');
 function freshPlugin() {
     global.window = {};
     global.document = { getElementById: () => null };
+    global.localStorage = { _store: {}, getItem(k) { return this._store[k] ?? null; }, setItem(k, v) { this._store[k] = v; }, clear() { this._store = {}; } };
     const file = path.join(__dirname, '..', 'screen.js');
     delete require.cache[require.resolve(file)];
     return require(file);
@@ -130,4 +131,63 @@ test('_metClick bails before touching the oscillator when volume is 0', () => {
     };
     mod._metClick(true);
     assert.equal(oscCreated, false);
+});
+
+test('_metSaveSettings persists settings to localStorage', () => {
+    const mod = freshPlugin();
+    mod._metSettings.enabled = true;
+    mod._metSettings.volume = 0.75;
+    mod._metSettings.flashEnabled = false;
+    mod._metSaveSettings();
+    const stored = JSON.parse(global.localStorage.getItem('slopsmithMetronomeSettings'));
+    assert.deepEqual(stored, { enabled: true, volume: 0.75, flashEnabled: false });
+});
+
+test('Settings are loaded from localStorage on init if present', () => {
+    global.window = {};
+    global.document = { getElementById: () => null };
+    global.localStorage = {
+        _store: { 'slopsmithMetronomeSettings': JSON.stringify({ enabled: true, volume: 0.5, flashEnabled: false }) },
+        getItem(k) { return this._store[k] ?? null; },
+        setItem(k, v) { this._store[k] = v; },
+        clear() { this._store = {}; },
+    };
+    const file = path.join(__dirname, '..', 'screen.js');
+    delete require.cache[require.resolve(file)];
+    const mod = require(file);
+    assert.equal(mod._metSettings.enabled, true);
+    assert.equal(mod._metSettings.volume, 0.5);
+    assert.equal(mod._metSettings.flashEnabled, false);
+});
+
+test('Settings revert to defaults if localStorage is corrupted', () => {
+    global.window = {};
+    global.document = { getElementById: () => null };
+    global.localStorage = {
+        _store: { 'slopsmithMetronomeSettings': 'not valid json' },
+        getItem(k) { return this._store[k] ?? null; },
+        setItem(k, v) { this._store[k] = v; },
+        clear() { this._store = {}; },
+    };
+    const file = path.join(__dirname, '..', 'screen.js');
+    delete require.cache[require.resolve(file)];
+    const mod = require(file);
+    assert.equal(mod._metSettings.enabled, false);
+    assert.equal(mod._metSettings.volume, 0.4);
+    assert.equal(mod._metSettings.flashEnabled, true);
+});
+
+test('_metToggle saves settings to localStorage', () => {
+    const mod = freshPlugin();
+    global.document = { getElementById: () => null };
+    mod._metToggle();
+    const stored = JSON.parse(global.localStorage.getItem('slopsmithMetronomeSettings'));
+    assert.equal(stored.enabled, true);
+});
+
+test('_metSetVolume saves settings to localStorage', () => {
+    const mod = freshPlugin();
+    mod._metSetVolume(60);
+    const stored = JSON.parse(global.localStorage.getItem('slopsmithMetronomeSettings'));
+    assert.equal(stored.volume, 0.6);
 });
