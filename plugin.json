@@ -4,6 +4,7 @@
   "version": "1.0.1",
   "private": false,
   "script": "screen.js",
+  "styles": "assets/plugin.css",
   "category": "practice",
   "description": "Built-in metronome and count-in.",
   "icon": "assets/thumb.svg"

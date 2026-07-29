@@ -1,0 +1,48 @@
+/*
+ * Metronome plugin — fallback theme tokens.
+ *
+ * The metronome UI (button, slider, checkboxes, select) is styled with
+ * host-defined Tailwind utility classes (bg-dark-600, bg-dark-500,
+ * bg-amber-900/50, text-gray-500, text-amber-300, accent-amber-400). If a
+ * host theme refactor removes or renames those tokens, this stylesheet
+ * gives the plugin's own controls a baseline appearance so they don't go
+ * fully unstyled. Values are exposed as CSS custom properties so a host
+ * can override them without editing this file.
+ */
+
+:root {
+    --met-bg: #2a2a2e;
+    --met-bg-hover: #3a3a3f;
+    --met-bg-active: rgba(217, 119, 6, 0.5);
+    --met-fg: #9ca3af;
+    --met-fg-active: #fcd34d;
+    --met-accent: #fbbf24;
+    --met-border: #3a3a3f;
+}
+
+@media (prefers-color-scheme: light) {
+    :root {
+        --met-bg: #e5e7eb;
+        --met-bg-hover: #d1d5db;
+        --met-fg: #4b5563;
+        --met-border: #d1d5db;
+    }
+}
+
+.bg-dark-600 { background-color: var(--met-bg); }
+.hover\:bg-dark-500:hover { background-color: var(--met-bg-hover); }
+.bg-amber-900\/50 { background-color: var(--met-bg-active); }
+.text-gray-500 { color: var(--met-fg); }
+.text-gray-400 { color: var(--met-fg); }
+.text-amber-300 { color: var(--met-fg-active); }
+.border-dark-500 { border-color: var(--met-border); }
+.accent-amber-400 { accent-color: var(--met-accent); }
+
+/* Plugin-owned elements (not host-themed classes) always get baseline styling. */
+#met-count-in-overlay span {
+    font-size: 120px;
+    font-weight: 900;
+    color: var(--met-accent);
+    text-shadow: 0 2px 40px rgba(245, 158, 11, 0.6);
+    font-family: sans-serif;
+}
