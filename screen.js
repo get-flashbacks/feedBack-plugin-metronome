@@ -21,6 +21,10 @@ function _metSaveSettings() {
 if (!_metSettings.subdivision) _metSettings.subdivision = _metSettingsDefaults.subdivision;
 if (_metSettings.countInEnabled === undefined) _metSettings.countInEnabled = _metSettingsDefaults.countInEnabled;
 
+function _metGetHostUi() {
+    return window.feedBack || window.slopsmith || null;
+}
+
 const MET_STATE_KEY = 'slopsmithMetronomeState';
 const _metState = window[MET_STATE_KEY] || (window[MET_STATE_KEY] = {
     lastBeatIdx: -1,
@@ -140,11 +144,12 @@ function _metInjectButton() {
     // v3: mount the metronome controls into the host's stable plugin-control
     // slot instead of anchoring to #btn-lyrics inside #player-controls (that
     // transport bar auto-hides in v3, making it an unreliable anchor).
-    const isV3 = !!(window.slopsmith && window.slopsmith.uiVersion === 'v3');
+    const hostUi = _metGetHostUi();
+    const isV3 = !!(hostUi && hostUi.uiVersion === 'v3');
     let slot = null;
-    if (isV3 && window.slopsmith.ui && typeof window.slopsmith.ui.playerControlSlot === 'function') {
+    if (isV3 && hostUi.ui && typeof hostUi.ui.playerControlSlot === 'function') {
         try {
-            const _s = window.slopsmith.ui.playerControlSlot();
+            const _s = hostUi.ui.playerControlSlot();
             if (_s && typeof _s.appendChild === 'function' && typeof _s.insertBefore === 'function') slot = _s;
         } catch (_e) { /* host slot API failure -> fall back to legacy container */ }
     }
@@ -176,7 +181,7 @@ function _metInjectButton() {
 
     const btn = document.createElement('button');
     btn.id = 'btn-metronome';
-    btn.className = 'px-3 py-1.5 bg-dark-600 hover:bg-dark-500 rounded-lg text-xs text-gray-500 transition';
+    btn.className = 'met-btn';
     btn.textContent = 'Metronome';
     btn.title = 'Toggle metronome click';
     btn.onclick = _metToggle;
@@ -187,23 +192,23 @@ function _metInjectButton() {
     slider.id = 'met-volume';
     slider.min = '0';
     slider.max = '100';
-    slider.className = 'w-16 accent-amber-400 hidden';
+    slider.className = 'met-range met-hidden';
     _metBindVolumeSlider(slider);
     insert(slider);
 
     const label = document.createElement('span');
     label.id = 'met-vol-label';
-    label.className = 'text-xs text-gray-500 w-8 hidden';
+    label.className = 'met-label met-hidden';
     label.textContent = `${Math.round(_metSettings.volume * 100)}%`;
     insert(label);
 
     const flashLabel = document.createElement('label');
     flashLabel.id = 'met-flash-label';
-    flashLabel.className = 'flex items-center gap-1 text-xs text-gray-500 cursor-pointer hidden';
+    flashLabel.className = 'met-toggle met-hidden';
     const flashCheck = document.createElement('input');
     flashCheck.type = 'checkbox';
     flashCheck.id = 'met-flash-check';
-    flashCheck.className = 'accent-amber-400';
+    flashCheck.className = 'met-checkbox';
     flashLabel.appendChild(flashCheck);
     flashLabel.appendChild(document.createTextNode(' Flash'));
     insert(flashLabel);
@@ -211,7 +216,7 @@ function _metInjectButton() {
 
     const subdivSel = document.createElement('select');
     subdivSel.id = 'met-subdiv';
-    subdivSel.className = 'bg-dark-600 text-xs text-gray-400 rounded px-1 py-0.5 border border-dark-500 hidden';
+    subdivSel.className = 'met-select met-hidden';
     subdivSel.title = 'Subdivision clicks';
     [['none', 'Beats only'], ['eighth', '8th notes'], ['triplet', 'Triplets']].forEach(([val, text]) => {
         const opt = document.createElement('option');
@@ -224,12 +229,12 @@ function _metInjectButton() {
 
     const countInLabel = document.createElement('label');
     countInLabel.id = 'met-count-in-label';
-    countInLabel.className = 'flex items-center gap-1 text-xs text-gray-500 cursor-pointer hidden';
+    countInLabel.className = 'met-toggle met-hidden';
     countInLabel.title = 'Show 4-3-2-1 countdown before the first beat';
     const countInCheck = document.createElement('input');
     countInCheck.type = 'checkbox';
     countInCheck.id = 'met-count-in-check';
-    countInCheck.className = 'accent-amber-400';
+    countInCheck.className = 'met-checkbox';
     countInLabel.appendChild(countInCheck);
     countInLabel.appendChild(document.createTextNode(' Count-in'));
     insert(countInLabel);
@@ -247,16 +252,14 @@ function _metSyncUi() {
     const subdivSel = document.getElementById('met-subdiv');
     const countInLabel = document.getElementById('met-count-in-label');
     if (btn) {
-        btn.className = enabled
-            ? 'px-3 py-1.5 bg-amber-900/50 rounded-lg text-xs text-amber-300 transition'
-            : 'px-3 py-1.5 bg-dark-600 hover:bg-dark-500 rounded-lg text-xs text-gray-500 transition';
+        btn.className = enabled ? 'met-btn met-btn--active' : 'met-btn';
         btn.textContent = enabled ? 'Metronome ✓' : 'Metronome';
     }
-    if (slider) slider.classList.toggle('hidden', !enabled);
-    if (label) label.classList.toggle('hidden', !enabled);
-    if (flashLabel) flashLabel.classList.toggle('hidden', !enabled);
-    if (subdivSel) subdivSel.classList.toggle('hidden', !enabled);
-    if (countInLabel) countInLabel.classList.toggle('hidden', !enabled);
+    if (slider) slider.classList.toggle('met-hidden', !enabled);
+    if (label) label.classList.toggle('met-hidden', !enabled);
+    if (flashLabel) flashLabel.classList.toggle('met-hidden', !enabled);
+    if (subdivSel) subdivSel.classList.toggle('met-hidden', !enabled);
+    if (countInLabel) countInLabel.classList.toggle('met-hidden', !enabled);
 }
 
 function _metToggle() {
@@ -423,6 +426,8 @@ function _metTick() {
 }
 
 const TICK_INTERVAL_ID_KEY = 'slopsmithMetronomeTickIntervalId';
+const VISIBILITY_CHANGE_HOOKS_INSTALLED_KEY = '__slopsmithMetronomeVisibilityChangeHooksInstalled';
+const INSTALLED_VISIBILITY_CHANGE_HANDLER_REF_KEY = '__slopsmithMetronomeInstalledVisibilityChangeHandlerRef';
 
 function _metStopTickInterval() {
     if (window[TICK_INTERVAL_ID_KEY]) {
@@ -447,33 +452,12 @@ function _metStartTickInterval() {
     }, 1000 / 60);
 }
 
-// Node-only export hook for tests; browsers fall through to the polling
-// loop + playSong wrapping below.
-if (typeof module !== 'undefined' && module.exports) {
-    module.exports = {
-        _metSettings, _metState, _metClick, _metFlash, _metBindVolumeSlider,
-        _metBindFlashCheck, _metBindSubdivSelect, _metBindCountInCheck,
-        _metInjectButton, _metSyncUi, _metToggle, _metSetVolume, _metSaveSettings,
-        _metGetHighway, _metEnsureDrawHookInstalled, _metTick,
-        _metUpdateCountIn, _metClearCountIn,
-        _metStartTickInterval, _metStopTickInterval,
-    };
-    return;
-}
+function _metInstallVisibilityHooks() {
+    if (typeof document === 'undefined' || typeof document.addEventListener !== 'function') return;
+    const installedVisibilityHandler = window[INSTALLED_VISIBILITY_CHANGE_HANDLER_REF_KEY];
+    if (window[VISIBILITY_CHANGE_HOOKS_INSTALLED_KEY] === true && installedVisibilityHandler) return;
 
-// Register draw hook on the highway renderer for the visual flash
-_metEnsureDrawHookInstalled();
-
-// Poll at 60fps for beat detection
-_metStopTickInterval();
-_metStartTickInterval();
-
-// Bug #5 fix: pause the polling loop while the tab is backgrounded instead
-// of letting the browser throttle setInterval unpredictably, then resync
-// lastBeatIdx (without firing a burst of "missed" clicks) on return so
-// beats don't silently get marked visited without ever clicking.
-if (typeof document !== 'undefined' && typeof document.addEventListener === 'function') {
-    document.addEventListener('visibilitychange', function() {
+    const visibilityChangeHandler = function() {
         if (document.hidden) {
             _metStopTickInterval();
             return;
@@ -494,8 +478,39 @@ if (typeof document !== 'undefined' && typeof document.addEventListener === 'fun
             }
         }
         _metStartTickInterval();
-    });
+    };
+
+    window[INSTALLED_VISIBILITY_CHANGE_HANDLER_REF_KEY] = visibilityChangeHandler;
+    window[VISIBILITY_CHANGE_HOOKS_INSTALLED_KEY] = true;
+    document.addEventListener('visibilitychange', visibilityChangeHandler);
 }
+
+// Node-only export hook for tests; browsers fall through to the polling
+// loop + playSong wrapping below.
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = {
+        _metSettings, _metState, _metClick, _metFlash, _metBindVolumeSlider,
+        _metBindFlashCheck, _metBindSubdivSelect, _metBindCountInCheck,
+        _metInjectButton, _metSyncUi, _metToggle, _metSetVolume, _metSaveSettings,
+        _metGetHighway, _metEnsureDrawHookInstalled, _metTick,
+        _metUpdateCountIn, _metClearCountIn,
+        _metStartTickInterval, _metStopTickInterval, _metInstallVisibilityHooks,
+    };
+    return;
+}
+
+// Register draw hook on the highway renderer for the visual flash
+_metEnsureDrawHookInstalled();
+
+// Poll at 60fps for beat detection
+_metStopTickInterval();
+_metStartTickInterval();
+
+// Bug #5 fix: pause the polling loop while the tab is backgrounded instead
+// of letting the browser throttle setInterval unpredictably, then resync
+// lastBeatIdx (without firing a burst of "missed" clicks) on return so
+// beats don't silently get marked visited without ever clicking.
+_metInstallVisibilityHooks();
 
 // Hook into playSong to inject button and reset state
 (function() {

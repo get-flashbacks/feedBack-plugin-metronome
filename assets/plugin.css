@@ -1,13 +1,8 @@
 /*
  * Metronome plugin — fallback theme tokens.
  *
- * The metronome UI (button, slider, checkboxes, select) is styled with
- * host-defined Tailwind utility classes (bg-dark-600, bg-dark-500,
- * bg-amber-900/50, text-gray-500, text-amber-300, accent-amber-400). If a
- * host theme refactor removes or renames those tokens, this stylesheet
- * gives the plugin's own controls a baseline appearance so they don't go
- * fully unstyled. Values are exposed as CSS custom properties so a host
- * can override them without editing this file.
+ * These styles are scoped to plugin-owned classes so they do not override or
+ * depend on host-wide utility selectors.
  */
 
 :root {
@@ -29,14 +24,60 @@
     }
 }
 
-.bg-dark-600 { background-color: var(--met-bg); }
-.hover\:bg-dark-500:hover { background-color: var(--met-bg-hover); }
-.bg-amber-900\/50 { background-color: var(--met-bg-active); }
-.text-gray-500 { color: var(--met-fg); }
-.text-gray-400 { color: var(--met-fg); }
-.text-amber-300 { color: var(--met-fg-active); }
-.border-dark-500 { border-color: var(--met-border); }
-.accent-amber-400 { accent-color: var(--met-accent); }
+.met-btn {
+    padding: 0.375rem 0.75rem;
+    border-radius: 0.5rem;
+    font-size: 0.75rem;
+    color: var(--met-fg);
+    background-color: var(--met-bg);
+    transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.met-btn:hover {
+    background-color: var(--met-bg-hover);
+}
+
+.met-btn--active {
+    background-color: var(--met-bg-active);
+    color: var(--met-fg-active);
+}
+
+.met-range {
+    width: 4rem;
+    accent-color: var(--met-accent);
+}
+
+.met-label {
+    width: 2rem;
+    font-size: 0.75rem;
+    color: var(--met-fg);
+}
+
+.met-toggle {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    cursor: pointer;
+    font-size: 0.75rem;
+    color: var(--met-fg);
+}
+
+.met-checkbox {
+    accent-color: var(--met-accent);
+}
+
+.met-select {
+    border: 1px solid var(--met-border);
+    border-radius: 0.25rem;
+    padding: 0.125rem 0.25rem;
+    font-size: 0.75rem;
+    color: var(--met-fg);
+    background-color: var(--met-bg);
+}
+
+.met-hidden {
+    display: none !important;
+}
 
 /* Plugin-owned elements (not host-themed classes) always get baseline styling. */
 #met-count-in-overlay span {

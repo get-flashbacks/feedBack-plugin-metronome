@@ -208,7 +208,7 @@ function makeFakeElement(tag) {
         _listeners: {},
         classList: {
             _hidden: false,
-            toggle(cls, force) { if (cls === 'hidden') this._hidden = force; },
+            toggle(cls, force) { if (cls === 'hidden' || cls === 'met-hidden') this._hidden = force; },
             add() {},
             remove() {},
         },
@@ -429,7 +429,7 @@ test('_metClearCountIn removes the overlay element from the DOM', () => {
 
 // --- Issue #11: v3 host UI slot mounting ---
 
-test('_metInjectButton mounts into window.slopsmith.ui.playerControlSlot() in v3', () => {
+test('_metInjectButton mounts into window.feedBack.ui.playerControlSlot() in v3', () => {
     global.window = {};
     global.document = makeFakeDocument();
     global.localStorage = { _store: {}, getItem(k) { return this._store[k] ?? null; }, setItem(k, v) { this._store[k] = v; }, clear() { this._store = {}; } };
@@ -438,7 +438,7 @@ test('_metInjectButton mounts into window.slopsmith.ui.playerControlSlot() in v3
     const mod = require(file);
 
     const slot = makeFakeElement('div');
-    global.window.slopsmith = { uiVersion: 'v3', ui: { playerControlSlot: () => slot } };
+    global.window.feedBack = { uiVersion: 'v3', ui: { playerControlSlot: () => slot } };
     const legacyControls = makeFakeElement('div');
     legacyControls.id = 'player-controls';
     // Register the legacy container too, to prove v3 mounting bypasses it.
@@ -463,13 +463,13 @@ test('_metInjectButton falls back to legacy #player-controls when playerControlS
     const doc = global.document;
     const baseGetElementById = doc.getElementById.bind(doc);
     doc.getElementById = (id) => (id === 'player-controls' ? legacyControls : baseGetElementById(id));
-    global.window.slopsmith = { uiVersion: 'v3', ui: { playerControlSlot: () => { throw new Error('boom'); } } };
+    global.window.feedBack = { uiVersion: 'v3', ui: { playerControlSlot: () => { throw new Error('boom'); } } };
 
     mod._metInjectButton();
     assert.ok(legacyControls.children.some((c) => c.id === 'btn-metronome'));
 });
 
-test('_metInjectButton keeps legacy behavior unchanged when window.slopsmith is absent', () => {
+test('_metInjectButton keeps legacy behavior unchanged when window.feedBack is absent', () => {
     global.window = {};
     global.document = makeFakeDocument();
     global.localStorage = { _store: {}, getItem(k) { return this._store[k] ?? null; }, setItem(k, v) { this._store[k] = v; }, clear() { this._store = {}; } };
@@ -495,4 +495,19 @@ test('_metStartTickInterval/_metStopTickInterval toggle the stored interval id',
     assert.ok(global.window.slopsmithMetronomeTickIntervalId);
     mod._metStopTickInterval();
     assert.equal(global.window.slopsmithMetronomeTickIntervalId, null);
+});
+
+test('_metInstallVisibilityHooks installs the visibility listener only once', () => {
+    const mod = freshPlugin();
+    const listeners = [];
+    global.document = {
+        hidden: false,
+        addEventListener(type, fn) { listeners.push({ type, fn }); },
+    };
+
+    mod._metInstallVisibilityHooks();
+    mod._metInstallVisibilityHooks();
+
+    assert.equal(listeners.length, 1);
+    assert.equal(listeners[0].type, 'visibilitychange');
 });
