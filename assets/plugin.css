@@ -1,0 +1,89 @@
+/*
+ * Metronome plugin — fallback theme tokens.
+ *
+ * These styles are scoped to plugin-owned classes so they do not override or
+ * depend on host-wide utility selectors.
+ */
+
+:root {
+    --met-bg: #2a2a2e;
+    --met-bg-hover: #3a3a3f;
+    --met-bg-active: rgba(217, 119, 6, 0.5);
+    --met-fg: #9ca3af;
+    --met-fg-active: #fcd34d;
+    --met-accent: #fbbf24;
+    --met-border: #3a3a3f;
+}
+
+@media (prefers-color-scheme: light) {
+    :root {
+        --met-bg: #e5e7eb;
+        --met-bg-hover: #d1d5db;
+        --met-fg: #4b5563;
+        --met-border: #d1d5db;
+    }
+}
+
+.met-btn {
+    padding: 0.375rem 0.75rem;
+    border-radius: 0.5rem;
+    font-size: 0.75rem;
+    color: var(--met-fg);
+    background-color: var(--met-bg);
+    transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.met-btn:hover {
+    background-color: var(--met-bg-hover);
+}
+
+.met-btn--active {
+    background-color: var(--met-bg-active);
+    color: var(--met-fg-active);
+}
+
+.met-range {
+    width: 4rem;
+    accent-color: var(--met-accent);
+}
+
+.met-label {
+    width: 2rem;
+    font-size: 0.75rem;
+    color: var(--met-fg);
+}
+
+.met-toggle {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    cursor: pointer;
+    font-size: 0.75rem;
+    color: var(--met-fg);
+}
+
+.met-checkbox {
+    accent-color: var(--met-accent);
+}
+
+.met-select {
+    border: 1px solid var(--met-border);
+    border-radius: 0.25rem;
+    padding: 0.125rem 0.25rem;
+    font-size: 0.75rem;
+    color: var(--met-fg);
+    background-color: var(--met-bg);
+}
+
+.met-hidden {
+    display: none !important;
+}
+
+/* Plugin-owned elements (not host-themed classes) always get baseline styling. */
+#met-count-in-overlay span {
+    font-size: 120px;
+    font-weight: 900;
+    color: var(--met-accent);
+    text-shadow: 0 2px 40px rgba(245, 158, 11, 0.6);
+    font-family: sans-serif;
+}
