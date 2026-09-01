@@ -219,6 +219,8 @@ function makeFakeElement(tag) {
         addEventListener(type, fn) { (el._listeners[type] = el._listeners[type] || []).push(fn); },
         removeEventListener(type, fn) { if (el._listeners[type]) el._listeners[type] = el._listeners[type].filter((f) => f !== fn); },
         querySelector() { return null; },
+        setAttribute(name, value) { el[name] = value; },
+        contains(node) { return el.children.includes(node) || el.children.some((c) => typeof c.contains === 'function' && c.contains(node)); },
     };
     return el;
 }
@@ -447,7 +449,7 @@ test('_metInjectButton mounts into window.feedBack.ui.playerControlSlot() in v3'
 
     mod._metInjectButton();
     assert.equal(legacyControls.children.length, 0);
-    assert.ok(slot.children.some((c) => c.id === 'btn-metronome'));
+    assert.ok(slot.children.some((c) => c.children && c.children.some((g) => g.id === 'btn-metronome')));
 });
 
 test('_metInjectButton falls back to legacy #player-controls when playerControlSlot() throws', () => {
@@ -466,7 +468,7 @@ test('_metInjectButton falls back to legacy #player-controls when playerControlS
     global.window.feedBack = { uiVersion: 'v3', ui: { playerControlSlot: () => { throw new Error('boom'); } } };
 
     mod._metInjectButton();
-    assert.ok(legacyControls.children.some((c) => c.id === 'btn-metronome'));
+    assert.ok(legacyControls.children.some((c) => c.children && c.children.some((g) => g.id === 'btn-metronome')));
 });
 
 test('_metInjectButton keeps legacy behavior unchanged when window.feedBack is absent', () => {
@@ -482,7 +484,7 @@ test('_metInjectButton keeps legacy behavior unchanged when window.feedBack is a
     global.document.getElementById = (id) => (id === 'player-controls' ? legacyControls : null);
 
     mod._metInjectButton();
-    assert.ok(legacyControls.children.some((c) => c.id === 'btn-metronome'));
+    assert.ok(legacyControls.children.some((c) => c.children && c.children.some((g) => g.id === 'btn-metronome')));
 });
 
 // --- Issues #3/#6: tick-interval start/stop helpers used by the navigation hook ---
