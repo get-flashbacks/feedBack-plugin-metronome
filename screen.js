@@ -157,15 +157,18 @@ function _metInjectButton() {
     if (!controls) return;
     const existingBtn = document.getElementById('btn-metronome');
     if (existingBtn) {
+        const existingEnabledCheck = document.getElementById('met-enabled-check');
         const existingSlider = document.getElementById('met-volume');
         const existingFlashCheck = document.getElementById('met-flash-check');
         const existingSubdivSel = document.getElementById('met-subdiv');
         const existingCountInCheck = document.getElementById('met-count-in-check');
-        existingBtn.onclick = _metToggle;
+        existingBtn.onclick = _metTogglePopover;
+        if (existingEnabledCheck) _metBindEnabledCheck(existingEnabledCheck);
         if (existingSlider) _metBindVolumeSlider(existingSlider);
         if (existingFlashCheck) _metBindFlashCheck(existingFlashCheck);
         if (existingSubdivSel) _metBindSubdivSelect(existingSubdivSel);
         if (existingCountInCheck) _metBindCountInCheck(existingCountInCheck);
+        _metInstallPopoverDismissHook();
         _metSyncUi();
         return;
     }
@@ -179,44 +182,73 @@ function _metInjectButton() {
         else controls.appendChild(el);
     };
 
+    // Issue #12: a compact icon button that toggles a small settings
+    // pop-up, instead of a text button that pushed raw <input>/<select>
+    // controls straight into the (already crowded) controls bar.
+    const wrap = document.createElement('div');
+    wrap.id = 'met-wrap';
+    wrap.className = 'met-wrap';
+    insert(wrap);
+
     const btn = document.createElement('button');
     btn.id = 'btn-metronome';
     btn.className = 'met-btn';
-    btn.textContent = 'Metronome';
-    btn.title = 'Toggle metronome click';
-    btn.onclick = _metToggle;
-    insert(btn);
+    btn.innerHTML = _MET_ICON_SVG;
+    btn.title = 'Metronome settings';
+    btn.setAttribute('aria-label', 'Metronome settings');
+    btn.onclick = _metTogglePopover;
+    wrap.appendChild(btn);
 
+    const popover = document.createElement('div');
+    popover.id = 'met-popover';
+    popover.className = 'met-popover met-hidden';
+    wrap.appendChild(popover);
+
+    const enabledLabel = document.createElement('label');
+    enabledLabel.id = 'met-enabled-label';
+    enabledLabel.className = 'met-toggle';
+    const enabledCheck = document.createElement('input');
+    enabledCheck.type = 'checkbox';
+    enabledCheck.id = 'met-enabled-check';
+    enabledCheck.className = 'met-checkbox';
+    enabledLabel.appendChild(enabledCheck);
+    enabledLabel.appendChild(document.createTextNode(' Enabled'));
+    popover.appendChild(enabledLabel);
+    _metBindEnabledCheck(enabledCheck);
+
+    const volRow = document.createElement('div');
+    volRow.className = 'met-row';
     const slider = document.createElement('input');
     slider.type = 'range';
     slider.id = 'met-volume';
     slider.min = '0';
     slider.max = '100';
-    slider.className = 'met-range met-hidden';
+    slider.className = 'met-range';
     _metBindVolumeSlider(slider);
-    insert(slider);
+    volRow.appendChild(slider);
 
     const label = document.createElement('span');
     label.id = 'met-vol-label';
-    label.className = 'met-label met-hidden';
+    label.className = 'met-label';
     label.textContent = `${Math.round(_metSettings.volume * 100)}%`;
-    insert(label);
+    volRow.appendChild(label);
+    popover.appendChild(volRow);
 
     const flashLabel = document.createElement('label');
     flashLabel.id = 'met-flash-label';
-    flashLabel.className = 'met-toggle met-hidden';
+    flashLabel.className = 'met-toggle';
     const flashCheck = document.createElement('input');
     flashCheck.type = 'checkbox';
     flashCheck.id = 'met-flash-check';
     flashCheck.className = 'met-checkbox';
     flashLabel.appendChild(flashCheck);
     flashLabel.appendChild(document.createTextNode(' Flash'));
-    insert(flashLabel);
+    popover.appendChild(flashLabel);
     _metBindFlashCheck(flashCheck);
 
     const subdivSel = document.createElement('select');
     subdivSel.id = 'met-subdiv';
-    subdivSel.className = 'met-select met-hidden';
+    subdivSel.className = 'met-select';
     subdivSel.title = 'Subdivision clicks';
     [['none', 'Beats only'], ['eighth', '8th notes'], ['triplet', 'Triplets']].forEach(([val, text]) => {
         const opt = document.createElement('option');
@@ -224,12 +256,12 @@ function _metInjectButton() {
         opt.textContent = text;
         subdivSel.appendChild(opt);
     });
-    insert(subdivSel);
+    popover.appendChild(subdivSel);
     _metBindSubdivSelect(subdivSel);
 
     const countInLabel = document.createElement('label');
     countInLabel.id = 'met-count-in-label';
-    countInLabel.className = 'met-toggle met-hidden';
+    countInLabel.className = 'met-toggle';
     countInLabel.title = 'Show 4-3-2-1 countdown before the first beat';
     const countInCheck = document.createElement('input');
     countInCheck.type = 'checkbox';
@@ -237,29 +269,64 @@ function _metInjectButton() {
     countInCheck.className = 'met-checkbox';
     countInLabel.appendChild(countInCheck);
     countInLabel.appendChild(document.createTextNode(' Count-in'));
-    insert(countInLabel);
+    popover.appendChild(countInLabel);
     _metBindCountInCheck(countInCheck);
 
+    _metInstallPopoverDismissHook();
     _metSyncUi();
+}
+
+// Classic metronome triangle-with-pendulum glyph (issue #12: "should have
+// the classic metronome shape").
+const _MET_ICON_SVG =
+    '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" ' +
+    'xmlns="http://www.w3.org/2000/svg" aria-hidden="true">' +
+    '<path d="M8 21h8l-2.5-15h-3L8 21z" stroke="currentColor" stroke-width="1.6" ' +
+    'stroke-linejoin="round"/>' +
+    '<line x1="12" y1="19" x2="15.5" y2="7" stroke="currentColor" stroke-width="1.6" ' +
+    'stroke-linecap="round"/>' +
+    '<circle cx="14.4" cy="11" r="1.3" fill="currentColor"/>' +
+    '</svg>';
+
+function _metBindEnabledCheck(check) {
+    if (check._metEnabledListener) check.removeEventListener('change', check._metEnabledListener);
+    check.checked = !!_metSettings.enabled;
+    check._metEnabledListener = function() { _metToggle(); };
+    check.addEventListener('change', check._metEnabledListener);
+}
+
+function _metTogglePopover(e) {
+    if (e && typeof e.stopPropagation === 'function') e.stopPropagation();
+    const popover = document.getElementById('met-popover');
+    if (!popover) return;
+    const isHidden = popover.classList._hidden !== undefined ? popover.classList._hidden : popover.className.indexOf('met-hidden') !== -1;
+    popover.classList.toggle('met-hidden', !isHidden);
+}
+
+// Closes the settings pop-up on an outside click. Installed once per page
+// (guarded like the other document-level hooks in this file).
+const MET_POPOVER_DISMISS_INSTALLED_KEY = '__slopsmithMetronomePopoverDismissInstalled';
+function _metInstallPopoverDismissHook() {
+    if (typeof document === 'undefined' || typeof document.addEventListener !== 'function') return;
+    if (window[MET_POPOVER_DISMISS_INSTALLED_KEY]) return;
+    document.addEventListener('click', function(e) {
+        const wrap = document.getElementById('met-wrap');
+        const popover = document.getElementById('met-popover');
+        if (!wrap || !popover) return;
+        if (typeof wrap.contains === 'function' && wrap.contains(e.target)) return;
+        popover.classList.toggle('met-hidden', true);
+    });
+    window[MET_POPOVER_DISMISS_INSTALLED_KEY] = true;
 }
 
 function _metSyncUi() {
     const enabled = _metSettings.enabled;
     const btn = document.getElementById('btn-metronome');
-    const slider = document.getElementById('met-volume');
-    const label = document.getElementById('met-vol-label');
-    const flashLabel = document.getElementById('met-flash-label');
-    const subdivSel = document.getElementById('met-subdiv');
-    const countInLabel = document.getElementById('met-count-in-label');
+    const enabledCheck = document.getElementById('met-enabled-check');
     if (btn) {
         btn.className = enabled ? 'met-btn met-btn--active' : 'met-btn';
-        btn.textContent = enabled ? 'Metronome ✓' : 'Metronome';
     }
-    if (slider) slider.classList.toggle('met-hidden', !enabled);
-    if (label) label.classList.toggle('met-hidden', !enabled);
-    if (flashLabel) flashLabel.classList.toggle('met-hidden', !enabled);
-    if (subdivSel) subdivSel.classList.toggle('met-hidden', !enabled);
-    if (countInLabel) countInLabel.classList.toggle('met-hidden', !enabled);
+    if (enabledCheck) enabledCheck.checked = enabled;
 }
 
 function _metToggle() {
@@ -491,6 +558,7 @@ if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
         _metSettings, _metState, _metClick, _metFlash, _metBindVolumeSlider,
         _metBindFlashCheck, _metBindSubdivSelect, _metBindCountInCheck,
+        _metBindEnabledCheck, _metTogglePopover, _metInstallPopoverDismissHook,
         _metInjectButton, _metSyncUi, _metToggle, _metSetVolume, _metSaveSettings,
         _metGetHighway, _metEnsureDrawHookInstalled, _metTick,
         _metUpdateCountIn, _metClearCountIn,
