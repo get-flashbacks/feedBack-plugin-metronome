@@ -195,10 +195,17 @@ test('_metSetVolume saves settings to localStorage', () => {
 // --- Fake DOM helpers for the UI-injection / count-in overlay tests below ---
 
 function makeFakeElement(tag) {
+    // Real class-token set, kept in sync with `className` both ways (like
+    // a real browser's classList/className) rather than a one-off
+    // `_hidden` boolean — so tests exercise the same `classList.contains`
+    // read path production code uses.
+    let classNameStr = '';
+    const tokens = () => classNameStr.split(/\s+/).filter(Boolean);
     const el = {
         tagName: tag,
         id: '',
-        className: '',
+        get className() { return classNameStr; },
+        set className(v) { classNameStr = v || ''; },
         textContent: '',
         title: '',
         children: [],
@@ -207,10 +214,15 @@ function makeFakeElement(tag) {
         parentNode: null,
         _listeners: {},
         classList: {
-            _hidden: false,
-            toggle(cls, force) { if (cls === 'hidden' || cls === 'met-hidden') this._hidden = force; },
-            add() {},
-            remove() {},
+            contains(cls) { return tokens().includes(cls); },
+            add(cls) { if (!tokens().includes(cls)) classNameStr = (classNameStr + ' ' + cls).trim(); },
+            remove(cls) { classNameStr = tokens().filter((t) => t !== cls).join(' '); },
+            toggle(cls, force) {
+                const has = tokens().includes(cls);
+                const want = force === undefined ? !has : force;
+                if (want) this.add(cls); else this.remove(cls);
+                return want;
+            },
         },
         appendChild(child) { el.children.push(child); child.parentNode = el; return child; },
         insertBefore(child, ref) { el.children.push(child); child.parentNode = el; return child; },
@@ -220,6 +232,8 @@ function makeFakeElement(tag) {
         removeEventListener(type, fn) { if (el._listeners[type]) el._listeners[type] = el._listeners[type].filter((f) => f !== fn); },
         querySelector() { return null; },
         setAttribute(name, value) { el[name] = value; },
+        getAttribute(name) { return name in el ? el[name] : null; },
+        focus() {},
         contains(node) { return el.children.includes(node) || el.children.some((c) => typeof c.contains === 'function' && c.contains(node)); },
     };
     return el;
@@ -229,11 +243,17 @@ function makeFakeDocument() {
     const created = [];
     const body = makeFakeElement('body');
     created.push(body);
+    const listeners = {};
     return {
         body,
         createElement(tag) { const el = makeFakeElement(tag); created.push(el); return el; },
         createTextNode(text) { return { nodeType: 3, textContent: text }; },
         getElementById(id) { return created.find((e) => e.id === id && !e._detached) || null; },
+        addEventListener(type, fn) { (listeners[type] = listeners[type] || []).push(fn); },
+        removeEventListener(type, fn) { if (listeners[type]) listeners[type] = listeners[type].filter((f) => f !== fn); },
+        // Test helper (not part of the real Document API): fire a fake
+        // event at every listener registered for `type`.
+        _dispatch(type, event) { (listeners[type] || []).forEach((fn) => fn(event)); },
     };
 }
 
@@ -485,6 +505,80 @@ test('_metInjectButton keeps legacy behavior unchanged when window.feedBack is a
 
     mod._metInjectButton();
     assert.ok(legacyControls.children.some((c) => c.children && c.children.some((g) => g.id === 'btn-metronome')));
+});
+
+// --- Issue #12 pullfrog review follow-up: popover open/close, outside-click
+// dismissal, and the enabled-check binding ---
+
+function setupPopoverTest() {
+    global.window = {};
+    const doc = makeFakeDocument();
+    global.document = doc;
+    global.localStorage = { _store: {}, getItem(k) { return this._store[k] ?? null; }, setItem(k, v) { this._store[k] = v; }, clear() { this._store = {}; } };
+    const controls = doc.createElement('div');
+    controls.id = 'player-controls';
+    const file = path.join(__dirname, '..', 'screen.js');
+    delete require.cache[require.resolve(file)];
+    const mod = require(file);
+    mod._metInjectButton();
+    return { mod, doc, btn: doc.getElementById('btn-metronome'), popover: doc.getElementById('met-popover') };
+}
+
+test('clicking the icon button toggles the popover hidden <-> visible and syncs aria-expanded', () => {
+    const { mod, btn, popover } = setupPopoverTest();
+    assert.ok(popover.classList.contains('met-hidden'));
+    assert.equal(btn['aria-expanded'], 'false');
+
+    mod._metTogglePopover({ stopPropagation() {} });
+    assert.ok(!popover.classList.contains('met-hidden'));
+    assert.equal(btn['aria-expanded'], 'true');
+
+    mod._metTogglePopover({ stopPropagation() {} });
+    assert.ok(popover.classList.contains('met-hidden'));
+    assert.equal(btn['aria-expanded'], 'false');
+});
+
+test('a click outside #met-wrap closes the open popover', () => {
+    const { mod, doc, btn, popover } = setupPopoverTest();
+    mod._metTogglePopover({ stopPropagation() {} });
+    assert.ok(!popover.classList.contains('met-hidden'));
+
+    const outsideEl = doc.createElement('div');
+    doc._dispatch('click', { target: outsideEl });
+    assert.ok(popover.classList.contains('met-hidden'));
+    assert.equal(btn['aria-expanded'], 'false');
+});
+
+test('a click inside #met-wrap does not close the popover', () => {
+    const { mod, doc, popover } = setupPopoverTest();
+    mod._metTogglePopover({ stopPropagation() {} });
+    assert.ok(!popover.classList.contains('met-hidden'));
+
+    // A click on the popover itself (a descendant of #met-wrap) must not
+    // be treated as "outside".
+    doc._dispatch('click', { target: popover });
+    assert.ok(!popover.classList.contains('met-hidden'));
+});
+
+test('Escape closes the popover and returns focus to the button', () => {
+    const { mod, popover, btn } = setupPopoverTest();
+    mod._metTogglePopover({ stopPropagation() {} });
+    assert.ok(!popover.classList.contains('met-hidden'));
+
+    let focused = false;
+    btn.focus = () => { focused = true; };
+    popover._listeners.keydown[0]({ key: 'Escape' });
+    assert.ok(popover.classList.contains('met-hidden'));
+    assert.ok(focused);
+});
+
+test('toggling #met-enabled-check flips _metSettings.enabled', () => {
+    const { mod, doc } = setupPopoverTest();
+    const check = doc.getElementById('met-enabled-check');
+    assert.equal(mod._metSettings.enabled, false);
+    check.checked = true;
+    check._listeners.change[0]();
+    assert.equal(mod._metSettings.enabled, true);
 });
 
 // --- Issues #3/#6: tick-interval start/stop helpers used by the navigation hook ---
