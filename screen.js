@@ -196,12 +196,18 @@ function _metInjectButton() {
     btn.innerHTML = _MET_ICON_SVG;
     btn.title = 'Metronome settings';
     btn.setAttribute('aria-label', 'Metronome settings');
+    btn.setAttribute('aria-haspopup', 'true');
+    btn.setAttribute('aria-expanded', 'false');
+    btn.setAttribute('aria-controls', 'met-popover');
     btn.onclick = _metTogglePopover;
     wrap.appendChild(btn);
 
     const popover = document.createElement('div');
     popover.id = 'met-popover';
     popover.className = 'met-popover met-hidden';
+    popover.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape' || e.key === 'Esc') { _metClosePopover(); btn.focus(); }
+    });
     wrap.appendChild(popover);
 
     const enabledLabel = document.createElement('label');
@@ -295,12 +301,23 @@ function _metBindEnabledCheck(check) {
     check.addEventListener('change', check._metEnabledListener);
 }
 
+function _metSetPopoverOpen(open) {
+    const popover = document.getElementById('met-popover');
+    const btn = document.getElementById('btn-metronome');
+    if (!popover) return;
+    popover.classList.toggle('met-hidden', !open);
+    if (btn) btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+}
+
 function _metTogglePopover(e) {
     if (e && typeof e.stopPropagation === 'function') e.stopPropagation();
     const popover = document.getElementById('met-popover');
     if (!popover) return;
-    const isHidden = popover.classList._hidden !== undefined ? popover.classList._hidden : popover.className.indexOf('met-hidden') !== -1;
-    popover.classList.toggle('met-hidden', !isHidden);
+    _metSetPopoverOpen(popover.classList.contains('met-hidden'));
+}
+
+function _metClosePopover() {
+    _metSetPopoverOpen(false);
 }
 
 // Closes the settings pop-up on an outside click. Installed once per page
@@ -314,7 +331,7 @@ function _metInstallPopoverDismissHook() {
         const popover = document.getElementById('met-popover');
         if (!wrap || !popover) return;
         if (typeof wrap.contains === 'function' && wrap.contains(e.target)) return;
-        popover.classList.toggle('met-hidden', true);
+        _metClosePopover();
     });
     window[MET_POPOVER_DISMISS_INSTALLED_KEY] = true;
 }
@@ -558,7 +575,8 @@ if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
         _metSettings, _metState, _metClick, _metFlash, _metBindVolumeSlider,
         _metBindFlashCheck, _metBindSubdivSelect, _metBindCountInCheck,
-        _metBindEnabledCheck, _metTogglePopover, _metInstallPopoverDismissHook,
+        _metBindEnabledCheck, _metTogglePopover, _metClosePopover, _metSetPopoverOpen,
+        _metInstallPopoverDismissHook,
         _metInjectButton, _metSyncUi, _metToggle, _metSetVolume, _metSaveSettings,
         _metGetHighway, _metEnsureDrawHookInstalled, _metTick,
         _metUpdateCountIn, _metClearCountIn,
