@@ -7,7 +7,8 @@ A plugin for [feedBack](https://github.com/got-feedback/feedback) that adds an a
 - **Audible click** — plays a sine tone on every beat, with a higher pitch on downbeats (measure starts)
 - **Visual flash** — subtle amber glow on the highway canvas on each beat (brighter on downbeats)
 - **Tempo-synced** — follows the song's actual beat map, including tempo changes
-- **Icon button** — click the metronome icon in the player controls to open a settings pop-up (enable/disable, volume, flash, subdivision, count-in)
+- **Toggle button** — click "Metronome" in the player controls to turn the click on/off directly
+- **Icon button** — click the metronome icon next to it to open a settings pop-up (enable/disable, volume, flash, subdivision, count-in)
 - **Zero setup** — no configuration needed, works with any song
 
 ## Installation
@@ -18,7 +19,7 @@ git clone https://github.com/got-feedback/feedback-plugin-metronome.git metronom
 docker compose restart
 ```
 
-A metronome icon will appear in the player controls bar when you play a song; click it to open the settings pop-up.
+A "Metronome" toggle button and a metronome icon will appear side by side in the player controls bar when you play a song: click the toggle to turn the click on/off directly, or click the icon to open the settings pop-up.
 
 ## How It Works
 

@@ -155,14 +155,16 @@ function _metInjectButton() {
     }
     const controls = slot || document.getElementById('player-controls');
     if (!controls) return;
-    const existingBtn = document.getElementById('btn-metronome');
-    if (existingBtn) {
+    const existingToggleBtn = document.getElementById('btn-metronome');
+    const existingSettingsBtn = document.getElementById('btn-metronome-settings');
+    if (existingToggleBtn && existingSettingsBtn) {
         const existingEnabledCheck = document.getElementById('met-enabled-check');
         const existingSlider = document.getElementById('met-volume');
         const existingFlashCheck = document.getElementById('met-flash-check');
         const existingSubdivSel = document.getElementById('met-subdiv');
         const existingCountInCheck = document.getElementById('met-count-in-check');
-        existingBtn.onclick = _metTogglePopover;
+        existingToggleBtn.onclick = _metToggle;
+        existingSettingsBtn.onclick = _metTogglePopover;
         if (existingEnabledCheck) _metBindEnabledCheck(existingEnabledCheck);
         if (existingSlider) _metBindVolumeSlider(existingSlider);
         if (existingFlashCheck) _metBindFlashCheck(existingFlashCheck);
@@ -182,16 +184,26 @@ function _metInjectButton() {
         else controls.appendChild(el);
     };
 
-    // Issue #12: a compact icon button that toggles a small settings
-    // pop-up, instead of a text button that pushed raw <input>/<select>
-    // controls straight into the (already crowded) controls bar.
+    // Issue #12 asked for a classic metronome icon; the original text
+    // toggle button stays in place alongside it (not replaced by it) — the
+    // icon opens a compact settings pop-up for volume/flash/subdivision/
+    // count-in instead of those controls being pushed raw into the
+    // (already crowded) controls bar the way they used to be.
     const wrap = document.createElement('div');
     wrap.id = 'met-wrap';
     wrap.className = 'met-wrap';
     insert(wrap);
 
+    const toggleBtn = document.createElement('button');
+    toggleBtn.id = 'btn-metronome';
+    toggleBtn.className = 'met-btn met-btn--text';
+    toggleBtn.textContent = 'Metronome';
+    toggleBtn.title = 'Toggle metronome click';
+    toggleBtn.onclick = _metToggle;
+    wrap.appendChild(toggleBtn);
+
     const btn = document.createElement('button');
-    btn.id = 'btn-metronome';
+    btn.id = 'btn-metronome-settings';
     btn.className = 'met-btn';
     btn.innerHTML = _MET_ICON_SVG;
     btn.title = 'Metronome settings';
@@ -303,7 +315,7 @@ function _metBindEnabledCheck(check) {
 
 function _metSetPopoverOpen(open) {
     const popover = document.getElementById('met-popover');
-    const btn = document.getElementById('btn-metronome');
+    const btn = document.getElementById('btn-metronome-settings');
     if (!popover) return;
     popover.classList.toggle('met-hidden', !open);
     if (btn) btn.setAttribute('aria-expanded', open ? 'true' : 'false');
@@ -338,10 +350,15 @@ function _metInstallPopoverDismissHook() {
 
 function _metSyncUi() {
     const enabled = _metSettings.enabled;
-    const btn = document.getElementById('btn-metronome');
+    const toggleBtn = document.getElementById('btn-metronome');
+    const settingsBtn = document.getElementById('btn-metronome-settings');
     const enabledCheck = document.getElementById('met-enabled-check');
-    if (btn) {
-        btn.className = enabled ? 'met-btn met-btn--active' : 'met-btn';
+    if (toggleBtn) {
+        toggleBtn.className = enabled ? 'met-btn met-btn--text met-btn--active' : 'met-btn met-btn--text';
+        toggleBtn.textContent = enabled ? 'Metronome ✓' : 'Metronome';
+    }
+    if (settingsBtn) {
+        settingsBtn.className = enabled ? 'met-btn met-btn--active' : 'met-btn';
     }
     if (enabledCheck) enabledCheck.checked = enabled;
 }
