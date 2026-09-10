@@ -521,7 +521,12 @@ function setupPopoverTest() {
     delete require.cache[require.resolve(file)];
     const mod = require(file);
     mod._metInjectButton();
-    return { mod, doc, btn: doc.getElementById('btn-metronome'), popover: doc.getElementById('met-popover') };
+    return {
+        mod, doc,
+        toggleBtn: doc.getElementById('btn-metronome'),
+        btn: doc.getElementById('btn-metronome-settings'),
+        popover: doc.getElementById('met-popover'),
+    };
 }
 
 test('clicking the icon button toggles the popover hidden <-> visible and syncs aria-expanded', () => {
@@ -579,6 +584,52 @@ test('toggling #met-enabled-check flips _metSettings.enabled', () => {
     check.checked = true;
     check._listeners.change[0]();
     assert.equal(mod._metSettings.enabled, true);
+});
+
+// --- The classic text toggle button lives alongside the icon settings
+// button, not replaced by it (design feedback on issue #12's original fix).
+
+test('_metInjectButton creates both the classic toggle button and the settings icon button', () => {
+    const { toggleBtn, btn } = setupPopoverTest();
+    assert.ok(toggleBtn, 'classic #btn-metronome toggle button must exist');
+    assert.ok(btn, '#btn-metronome-settings icon button must exist');
+    assert.notEqual(toggleBtn, btn, 'the two buttons must be distinct elements');
+});
+
+test('clicking the classic toggle button flips _metSettings.enabled directly, without opening the popover', () => {
+    const { mod, toggleBtn, popover } = setupPopoverTest();
+    assert.equal(mod._metSettings.enabled, false);
+    toggleBtn.onclick();
+    assert.equal(mod._metSettings.enabled, true);
+    assert.ok(popover.classList.contains('met-hidden'), 'the settings popover must stay closed');
+});
+
+test('clicking the settings icon button opens the popover without touching _metSettings.enabled', () => {
+    const { mod, btn, popover } = setupPopoverTest();
+    assert.equal(mod._metSettings.enabled, false);
+    btn.onclick({ stopPropagation() {} });
+    assert.ok(!popover.classList.contains('met-hidden'));
+    assert.equal(mod._metSettings.enabled, false);
+});
+
+test('_metSyncUi updates the classic toggle button text/active class and the settings button active class together', () => {
+    const { mod, toggleBtn, btn } = setupPopoverTest();
+    assert.equal(toggleBtn.textContent, 'Metronome');
+    assert.ok(!toggleBtn.className.includes('met-btn--active'));
+    assert.ok(!btn.className.includes('met-btn--active'));
+
+    mod._metToggle();
+
+    assert.equal(toggleBtn.textContent, 'Metronome ✓');
+    assert.ok(toggleBtn.className.includes('met-btn--active'));
+    assert.ok(btn.className.includes('met-btn--active'));
+});
+
+test('re-invoking _metInjectButton rewires onclick on both existing buttons rather than duplicating them', () => {
+    const { mod, doc, toggleBtn, btn } = setupPopoverTest();
+    mod._metInjectButton();
+    assert.equal(doc.getElementById('btn-metronome'), toggleBtn, 'must reuse the same toggle button element');
+    assert.equal(doc.getElementById('btn-metronome-settings'), btn, 'must reuse the same settings button element');
 });
 
 // --- Issues #3/#6: tick-interval start/stop helpers used by the navigation hook ---
