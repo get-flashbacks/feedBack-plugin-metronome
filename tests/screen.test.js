@@ -227,7 +227,17 @@ function makeFakeElement(tag) {
         appendChild(child) { el.children.push(child); child.parentNode = el; return child; },
         insertBefore(child, ref) { el.children.push(child); child.parentNode = el; return child; },
         removeChild(child) { el.children = el.children.filter((c) => c !== child); child.parentNode = null; return child; },
-        remove() { if (el.parentNode) el.parentNode.removeChild(el); el._detached = true; },
+        remove() {
+            if (el.parentNode) el.parentNode.removeChild(el);
+            // Real getElementById can never find a node whose subtree was
+            // removed, including its descendants — mark the whole subtree
+            // detached, not just the removed root, so the fake's flat
+            // getElementById lookup (below) matches that.
+            (function markDetached(node) {
+                node._detached = true;
+                if (Array.isArray(node.children)) node.children.forEach(markDetached);
+            })(el);
+        },
         addEventListener(type, fn) { (el._listeners[type] = el._listeners[type] || []).push(fn); },
         removeEventListener(type, fn) { if (el._listeners[type]) el._listeners[type] = el._listeners[type].filter((f) => f !== fn); },
         querySelector() { return null; },
@@ -523,6 +533,7 @@ function setupPopoverTest() {
     mod._metInjectButton();
     return {
         mod, doc,
+        wrap: doc.getElementById('met-wrap'),
         toggleBtn: doc.getElementById('btn-metronome'),
         btn: doc.getElementById('btn-metronome-settings'),
         popover: doc.getElementById('met-popover'),
@@ -566,15 +577,45 @@ test('a click inside #met-wrap does not close the popover', () => {
 });
 
 test('Escape closes the popover and returns focus to the button', () => {
-    const { mod, popover, btn } = setupPopoverTest();
+    const { mod, wrap, popover, btn } = setupPopoverTest();
     mod._metTogglePopover({ stopPropagation() {} });
     assert.ok(!popover.classList.contains('met-hidden'));
 
     let focused = false;
     btn.focus = () => { focused = true; };
-    popover._listeners.keydown[0]({ key: 'Escape' });
+    // The keydown listener lives on `wrap`, not `popover` — opening the
+    // popover never moves focus into it, so a CodeRabbit review flagged
+    // that an Escape fired immediately after open (while focus is still on
+    // the settings button) would never reach a popover-scoped listener.
+    // Dispatch from wrap, the shared ancestor, to match.
+    wrap._listeners.keydown[0]({ key: 'Escape' });
     assert.ok(popover.classList.contains('met-hidden'));
     assert.ok(focused);
+});
+
+test('re-invoking _metInjectButton with only the classic toggle present replaces it with a full control pair instead of duplicating', () => {
+    const { mod, doc, wrap, toggleBtn } = setupPopoverTest();
+    // Simulate a partial/stale DOM (e.g. left by an older plugin version):
+    // drop the settings button and its popover, leaving only the classic
+    // toggle, exactly as CodeRabbit's review scenario describes.
+    const settingsBtn = doc.getElementById('btn-metronome-settings');
+    settingsBtn.remove();
+    doc.getElementById('met-popover').remove();
+    assert.ok(doc.getElementById('btn-metronome'), 'sanity: classic toggle still present');
+    assert.equal(doc.getElementById('btn-metronome-settings'), null, 'sanity: settings button removed');
+
+    mod._metInjectButton();
+
+    const newToggle = doc.getElementById('btn-metronome');
+    const newSettings = doc.getElementById('btn-metronome-settings');
+    assert.ok(newToggle, 'toggle button must exist after re-injection');
+    assert.ok(newSettings, 'settings button must exist after re-injection');
+    assert.notEqual(newToggle, toggleBtn, 'the stale partial wrap must be replaced, not appended alongside');
+    // Exactly one #met-wrap must exist under the controls parent — no
+    // duplicate left behind from the partial state.
+    const controls = doc.getElementById('player-controls') || wrap.parentNode;
+    const wraps = controls.children.filter((c) => c.id === 'met-wrap');
+    assert.equal(wraps.length, 1, 'must not leave a duplicate #met-wrap behind');
 });
 
 test('toggling #met-enabled-check flips _metSettings.enabled', () => {
