@@ -175,6 +175,21 @@ function _metInjectButton() {
         return;
     }
 
+    // Partial-controls case (e.g. a stale DOM left by an older plugin
+    // version, or an interrupted prior injection): drop whatever's left
+    // rather than appending a duplicate alongside it below, which would
+    // leave _metSyncUi() updating the first DOM match while a second,
+    // orphaned control goes stale.
+    if (existingToggleBtn || existingSettingsBtn) {
+        const staleWrap = document.getElementById('met-wrap');
+        if (staleWrap) {
+            staleWrap.remove();
+        } else {
+            if (existingToggleBtn) existingToggleBtn.remove();
+            if (existingSettingsBtn) existingSettingsBtn.remove();
+        }
+    }
+
     const lyricsBtn = document.getElementById('btn-lyrics');
     // In the v3 slot we always append in order rather than anchoring to a
     // node that may not even be a child of the slot.
@@ -217,7 +232,13 @@ function _metInjectButton() {
     const popover = document.createElement('div');
     popover.id = 'met-popover';
     popover.className = 'met-popover met-hidden';
-    popover.addEventListener('keydown', function(e) {
+    // Listen on `wrap`, not `popover`: opening the popover doesn't move
+    // focus into it, so an Escape pressed immediately after the click that
+    // opened it still targets the settings button — a listener scoped to
+    // the popover alone would never see that keydown. `wrap` is an
+    // ancestor of both the button and the popover, so it catches Escape
+    // from either.
+    wrap.addEventListener('keydown', function(e) {
         if (e.key === 'Escape' || e.key === 'Esc') { _metClosePopover(); btn.focus(); }
     });
     wrap.appendChild(popover);
