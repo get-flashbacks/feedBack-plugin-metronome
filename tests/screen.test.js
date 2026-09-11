@@ -666,6 +666,20 @@ test('re-invoking _metInjectButton rewires onclick on the existing button rather
     assert.equal(doc.getElementById('btn-metronome'), btn, 'must reuse the same button element');
 });
 
+test('re-injection rebuilds controls when the consolidated button has no popover', () => {
+    const { mod, doc, wrap, btn } = setupPopoverTest();
+    const oldPopover = doc.getElementById('met-popover');
+    oldPopover.remove();
+
+    mod._metInjectButton();
+
+    const newBtn = doc.getElementById('btn-metronome');
+    assert.ok(newBtn);
+    assert.notEqual(newBtn, btn);
+    assert.ok(doc.getElementById('met-popover'));
+    assert.notEqual(doc.getElementById('met-wrap'), wrap);
+});
+
 // --- Issues #3/#6: tick-interval start/stop helpers used by the navigation hook ---
 
 test('_metStartTickInterval/_metStopTickInterval toggle the stored interval id', () => {
