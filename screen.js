@@ -155,16 +155,22 @@ function _metInjectButton() {
     }
     const controls = slot || document.getElementById('player-controls');
     if (!controls) return;
-    const existingToggleBtn = document.getElementById('btn-metronome');
-    const existingSettingsBtn = document.getElementById('btn-metronome-settings');
-    if (existingToggleBtn && existingSettingsBtn) {
+    const existingBtn = document.getElementById('btn-metronome');
+    // Gate reuse on `aria-haspopup` rather than just the id existing: a
+    // pre-consolidation page (the old classic-text-toggle-plus-icon pair)
+    // also used id="btn-metronome" for its text-only toggle button, which
+    // has none of the new single button's markup. Reusing that element
+    // as-is would rebind the popover-opening handler onto a stale text
+    // button that still reads "Metronome" instead of showing the icon.
+    const isConsolidatedBtn = !!(existingBtn && typeof existingBtn.getAttribute === 'function' &&
+        existingBtn.getAttribute('aria-haspopup') === 'true');
+    if (isConsolidatedBtn) {
         const existingEnabledCheck = document.getElementById('met-enabled-check');
         const existingSlider = document.getElementById('met-volume');
         const existingFlashCheck = document.getElementById('met-flash-check');
         const existingSubdivSel = document.getElementById('met-subdiv');
         const existingCountInCheck = document.getElementById('met-count-in-check');
-        existingToggleBtn.onclick = _metToggle;
-        existingSettingsBtn.onclick = _metTogglePopover;
+        existingBtn.onclick = _metTogglePopover;
         if (existingEnabledCheck) _metBindEnabledCheck(existingEnabledCheck);
         if (existingSlider) _metBindVolumeSlider(existingSlider);
         if (existingFlashCheck) _metBindFlashCheck(existingFlashCheck);
@@ -175,19 +181,18 @@ function _metInjectButton() {
         return;
     }
 
-    // Partial-controls case (e.g. a stale DOM left by an older plugin
-    // version, or an interrupted prior injection): drop whatever's left
-    // rather than appending a duplicate alongside it below, which would
-    // leave _metSyncUi() updating the first DOM match while a second,
-    // orphaned control goes stale.
-    if (existingToggleBtn || existingSettingsBtn) {
-        const staleWrap = document.getElementById('met-wrap');
-        if (staleWrap) {
-            staleWrap.remove();
-        } else {
-            if (existingToggleBtn) existingToggleBtn.remove();
-            if (existingSettingsBtn) existingSettingsBtn.remove();
-        }
+    // Stale DOM: a pre-consolidation classic toggle (+ its separate settings
+    // icon), or an interrupted prior injection. Drop whatever's left rather
+    // than appending a duplicate alongside it below, which would leave
+    // _metSyncUi() updating the first DOM match while a second, orphaned
+    // control goes stale.
+    const staleWrap = document.getElementById('met-wrap');
+    if (staleWrap) {
+        staleWrap.remove();
+    } else {
+        if (existingBtn) existingBtn.remove();
+        const staleSettingsBtn = document.getElementById('btn-metronome-settings');
+        if (staleSettingsBtn) staleSettingsBtn.remove();
     }
 
     const lyricsBtn = document.getElementById('btn-lyrics');
@@ -199,26 +204,18 @@ function _metInjectButton() {
         else controls.appendChild(el);
     };
 
-    // Issue #12 asked for a classic metronome icon; the original text
-    // toggle button stays in place alongside it (not replaced by it) — the
-    // icon opens a compact settings pop-up for volume/flash/subdivision/
-    // count-in instead of those controls being pushed raw into the
-    // (already crowded) controls bar the way they used to be.
+    // Single consolidated button (design feedback on issue #12: a separate
+    // text toggle next to the icon was repetitive). Clicking it opens the
+    // settings pop-up, whose "Enabled" checkbox is now the only on/off
+    // control — the button itself still reflects enabled state visually
+    // via the met-btn--active class (see _metSyncUi).
     const wrap = document.createElement('div');
     wrap.id = 'met-wrap';
     wrap.className = 'met-wrap';
     insert(wrap);
 
-    const toggleBtn = document.createElement('button');
-    toggleBtn.id = 'btn-metronome';
-    toggleBtn.className = 'met-btn met-btn--text';
-    toggleBtn.textContent = 'Metronome';
-    toggleBtn.title = 'Toggle metronome click';
-    toggleBtn.onclick = _metToggle;
-    wrap.appendChild(toggleBtn);
-
     const btn = document.createElement('button');
-    btn.id = 'btn-metronome-settings';
+    btn.id = 'btn-metronome';
     btn.className = 'met-btn';
     btn.innerHTML = _MET_ICON_SVG;
     btn.title = 'Metronome settings';
@@ -336,7 +333,7 @@ function _metBindEnabledCheck(check) {
 
 function _metSetPopoverOpen(open) {
     const popover = document.getElementById('met-popover');
-    const btn = document.getElementById('btn-metronome-settings');
+    const btn = document.getElementById('btn-metronome');
     if (!popover) return;
     popover.classList.toggle('met-hidden', !open);
     if (btn) btn.setAttribute('aria-expanded', open ? 'true' : 'false');
@@ -371,15 +368,13 @@ function _metInstallPopoverDismissHook() {
 
 function _metSyncUi() {
     const enabled = _metSettings.enabled;
-    const toggleBtn = document.getElementById('btn-metronome');
-    const settingsBtn = document.getElementById('btn-metronome-settings');
+    const btn = document.getElementById('btn-metronome');
     const enabledCheck = document.getElementById('met-enabled-check');
-    if (toggleBtn) {
-        toggleBtn.className = enabled ? 'met-btn met-btn--text met-btn--active' : 'met-btn met-btn--text';
-        toggleBtn.textContent = enabled ? 'Metronome ✓' : 'Metronome';
-    }
-    if (settingsBtn) {
-        settingsBtn.className = enabled ? 'met-btn met-btn--active' : 'met-btn';
+    if (btn) {
+        btn.className = enabled ? 'met-btn met-btn--active' : 'met-btn';
+        const stateLabel = enabled ? 'Metronome settings (on)' : 'Metronome settings (off)';
+        btn.title = stateLabel;
+        btn.setAttribute('aria-label', stateLabel);
     }
     if (enabledCheck) enabledCheck.checked = enabled;
 }
