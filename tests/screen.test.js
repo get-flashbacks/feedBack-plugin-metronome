@@ -534,8 +534,7 @@ function setupPopoverTest() {
     return {
         mod, doc,
         wrap: doc.getElementById('met-wrap'),
-        toggleBtn: doc.getElementById('btn-metronome'),
-        btn: doc.getElementById('btn-metronome-settings'),
+        btn: doc.getElementById('btn-metronome'),
         popover: doc.getElementById('met-popover'),
     };
 }
@@ -593,26 +592,30 @@ test('Escape closes the popover and returns focus to the button', () => {
     assert.ok(focused);
 });
 
-test('re-invoking _metInjectButton with only the classic toggle present replaces it with a full control pair instead of duplicating', () => {
-    const { mod, doc, wrap, toggleBtn } = setupPopoverTest();
-    // Simulate a partial/stale DOM (e.g. left by an older plugin version):
-    // drop the settings button and its popover, leaving only the classic
-    // toggle, exactly as CodeRabbit's review scenario describes.
-    const settingsBtn = doc.getElementById('btn-metronome-settings');
-    settingsBtn.remove();
-    doc.getElementById('met-popover').remove();
-    assert.ok(doc.getElementById('btn-metronome'), 'sanity: classic toggle still present');
-    assert.equal(doc.getElementById('btn-metronome-settings'), null, 'sanity: settings button removed');
+test('re-invoking _metInjectButton after an older two-button version left its DOM behind replaces it with the single consolidated button', () => {
+    const { mod, doc, wrap } = setupPopoverTest();
+    // Simulate a page that still has the pre-consolidation DOM: a classic
+    // text toggle at id="btn-metronome" (no aria-haspopup) plus a separate
+    // id="btn-metronome-settings" icon button and its popover.
+    doc.getElementById('btn-metronome').remove();
+    const oldToggle = doc.createElement('button');
+    oldToggle.id = 'btn-metronome';
+    oldToggle.className = 'met-btn';
+    oldToggle.textContent = 'Metronome';
+    wrap.appendChild(oldToggle);
+    const oldSettingsBtn = doc.createElement('button');
+    oldSettingsBtn.id = 'btn-metronome-settings';
+    wrap.appendChild(oldSettingsBtn);
 
     mod._metInjectButton();
 
-    const newToggle = doc.getElementById('btn-metronome');
-    const newSettings = doc.getElementById('btn-metronome-settings');
-    assert.ok(newToggle, 'toggle button must exist after re-injection');
-    assert.ok(newSettings, 'settings button must exist after re-injection');
-    assert.notEqual(newToggle, toggleBtn, 'the stale partial wrap must be replaced, not appended alongside');
+    const newBtn = doc.getElementById('btn-metronome');
+    assert.ok(newBtn, 'consolidated button must exist after re-injection');
+    assert.notEqual(newBtn, oldToggle, 'the stale classic toggle must be replaced, not reused');
+    assert.equal(newBtn.getAttribute('aria-haspopup'), 'true', 'the rebuilt button must be the consolidated icon button');
+    assert.equal(doc.getElementById('btn-metronome-settings'), null, 'the stale separate settings button id must be gone');
     // Exactly one #met-wrap must exist under the controls parent — no
-    // duplicate left behind from the partial state.
+    // duplicate left behind from the stale state.
     const controls = doc.getElementById('player-controls') || wrap.parentNode;
     const wraps = controls.children.filter((c) => c.id === 'met-wrap');
     assert.equal(wraps.length, 1, 'must not leave a duplicate #met-wrap behind');
@@ -627,25 +630,17 @@ test('toggling #met-enabled-check flips _metSettings.enabled', () => {
     assert.equal(mod._metSettings.enabled, true);
 });
 
-// --- The classic text toggle button lives alongside the icon settings
-// button, not replaced by it (design feedback on issue #12's original fix).
+// --- A single consolidated button replaces the separate classic toggle +
+// icon pair (design feedback: two buttons for one feature was repetitive).
 
-test('_metInjectButton creates both the classic toggle button and the settings icon button', () => {
-    const { toggleBtn, btn } = setupPopoverTest();
-    assert.ok(toggleBtn, 'classic #btn-metronome toggle button must exist');
-    assert.ok(btn, '#btn-metronome-settings icon button must exist');
-    assert.notEqual(toggleBtn, btn, 'the two buttons must be distinct elements');
+test('_metInjectButton creates exactly one consolidated button, not a separate toggle', () => {
+    const { doc, btn } = setupPopoverTest();
+    assert.ok(btn, '#btn-metronome consolidated button must exist');
+    assert.equal(btn.getAttribute('aria-haspopup'), 'true');
+    assert.equal(doc.getElementById('btn-metronome-settings'), null, 'no separate settings-button id should exist');
 });
 
-test('clicking the classic toggle button flips _metSettings.enabled directly, without opening the popover', () => {
-    const { mod, toggleBtn, popover } = setupPopoverTest();
-    assert.equal(mod._metSettings.enabled, false);
-    toggleBtn.onclick();
-    assert.equal(mod._metSettings.enabled, true);
-    assert.ok(popover.classList.contains('met-hidden'), 'the settings popover must stay closed');
-});
-
-test('clicking the settings icon button opens the popover without touching _metSettings.enabled', () => {
+test('clicking the button opens the popover without touching _metSettings.enabled', () => {
     const { mod, btn, popover } = setupPopoverTest();
     assert.equal(mod._metSettings.enabled, false);
     btn.onclick({ stopPropagation() {} });
@@ -653,24 +648,22 @@ test('clicking the settings icon button opens the popover without touching _metS
     assert.equal(mod._metSettings.enabled, false);
 });
 
-test('_metSyncUi updates the classic toggle button text/active class and the settings button active class together', () => {
-    const { mod, toggleBtn, btn } = setupPopoverTest();
-    assert.equal(toggleBtn.textContent, 'Metronome');
-    assert.ok(!toggleBtn.className.includes('met-btn--active'));
+test('_metSyncUi updates the button active class and title/aria-label to reflect enabled state', () => {
+    const { mod, btn } = setupPopoverTest();
     assert.ok(!btn.className.includes('met-btn--active'));
+    assert.equal(btn.title, 'Metronome settings (off)');
 
     mod._metToggle();
 
-    assert.equal(toggleBtn.textContent, 'Metronome ✓');
-    assert.ok(toggleBtn.className.includes('met-btn--active'));
     assert.ok(btn.className.includes('met-btn--active'));
+    assert.equal(btn.title, 'Metronome settings (on)');
+    assert.equal(btn['aria-label'], 'Metronome settings (on)');
 });
 
-test('re-invoking _metInjectButton rewires onclick on both existing buttons rather than duplicating them', () => {
-    const { mod, doc, toggleBtn, btn } = setupPopoverTest();
+test('re-invoking _metInjectButton rewires onclick on the existing button rather than duplicating it', () => {
+    const { mod, doc, btn } = setupPopoverTest();
     mod._metInjectButton();
-    assert.equal(doc.getElementById('btn-metronome'), toggleBtn, 'must reuse the same toggle button element');
-    assert.equal(doc.getElementById('btn-metronome-settings'), btn, 'must reuse the same settings button element');
+    assert.equal(doc.getElementById('btn-metronome'), btn, 'must reuse the same button element');
 });
 
 // --- Issues #3/#6: tick-interval start/stop helpers used by the navigation hook ---

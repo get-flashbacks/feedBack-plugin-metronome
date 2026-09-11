@@ -47,12 +47,6 @@
     background-color: var(--met-bg-hover);
 }
 
-/* The classic text toggle button ("Metronome"/"Metronome ✓") needs wider
-   horizontal padding than the square icon settings button. */
-.met-btn--text {
-    padding: 0.375rem 0.75rem;
-}
-
 .met-btn--active {
     background-color: var(--met-bg-active);
     color: var(--met-fg-active);
