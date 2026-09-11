@@ -162,7 +162,9 @@ function _metInjectButton() {
     // has none of the new single button's markup. Reusing that element
     // as-is would rebind the popover-opening handler onto a stale text
     // button that still reads "Metronome" instead of showing the icon.
-    const isConsolidatedBtn = !!(existingBtn && typeof existingBtn.getAttribute === 'function' &&
+    const existingPopover = document.getElementById('met-popover');
+    const isConsolidatedBtn = !!(existingBtn && existingPopover &&
+        typeof existingBtn.getAttribute === 'function' &&
         existingBtn.getAttribute('aria-haspopup') === 'true');
     if (isConsolidatedBtn) {
         const existingEnabledCheck = document.getElementById('met-enabled-check');
