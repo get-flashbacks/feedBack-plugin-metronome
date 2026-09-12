@@ -195,6 +195,16 @@ function _metInjectButton() {
         if (existingBtn) existingBtn.remove();
         const staleSettingsBtn = document.getElementById('btn-metronome-settings');
         if (staleSettingsBtn) staleSettingsBtn.remove();
+        // The released 1.0.1 build appended the volume/flash/subdivision/
+        // count-in controls directly to #player-controls (no #met-wrap),
+        // and _metSyncUi no longer manages those ids — drop whichever
+        // survived a live upgrade so they don't strand dead chrome in the
+        // controls bar next to the fresh popover-backed control set.
+        ['met-volume', 'met-vol-label', 'met-flash-label', 'met-subdiv', 'met-count-in-label']
+            .forEach((id) => {
+                const legacy = document.getElementById(id);
+                if (legacy) legacy.remove();
+            });
     }
 
     const lyricsBtn = document.getElementById('btn-lyrics');

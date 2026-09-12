@@ -621,6 +621,47 @@ test('re-invoking _metInjectButton after an older two-button version left its DO
     assert.equal(wraps.length, 1, 'must not leave a duplicate #met-wrap behind');
 });
 
+test('re-injecting after the released 1.0.1 build removes its legacy top-level controls instead of stranding them', () => {
+    global.window = {};
+    const doc = makeFakeDocument();
+    global.document = doc;
+    global.localStorage = { _store: {}, getItem(k) { return this._store[k] ?? null; }, setItem(k, v) { this._store[k] = v; }, clear() { this._store = {}; } };
+    const controls = doc.createElement('div');
+    controls.id = 'player-controls';
+    const file = path.join(__dirname, '..', 'screen.js');
+    delete require.cache[require.resolve(file)];
+    const mod = require(file);
+
+    // Released 1.0.1 shape: no #met-wrap — the classic text toggle and the
+    // five controls sit directly under #player-controls, and _metSyncUi no
+    // longer updates those ids.
+    const oldToggle = doc.createElement('button');
+    oldToggle.id = 'btn-metronome';
+    oldToggle.textContent = 'Metronome';
+    controls.appendChild(oldToggle);
+    const legacy = {};
+    ['met-volume', 'met-vol-label', 'met-flash-label', 'met-subdiv', 'met-count-in-label']
+        .forEach((id) => {
+            const tag = id === 'met-subdiv' ? 'select' : id === 'met-vol-label' ? 'span' : id === 'met-volume' ? 'input' : 'label';
+            const el = doc.createElement(tag);
+            el.id = id;
+            controls.appendChild(el);
+            legacy[id] = el;
+        });
+
+    mod._metInjectButton();
+
+    const newBtn = doc.getElementById('btn-metronome');
+    assert.ok(newBtn, 'a consolidated button must exist after re-injection');
+    assert.notEqual(newBtn, oldToggle, 'the 1.0.1 text toggle must be replaced, not reused');
+    assert.equal(newBtn.getAttribute('aria-haspopup'), 'true', 'the rebuilt button must be the consolidated icon button');
+    Object.keys(legacy).forEach((id) => {
+        assert.equal(legacy[id]._detached, true, `legacy #${id} must not be stranded in the controls bar`);
+    });
+    assert.ok(doc.getElementById('met-volume'), 'the fresh popover control set must provide #met-volume');
+    assert.ok(doc.getElementById('met-popover'), 'the rebuild must recreate the popover');
+});
+
 test('toggling #met-enabled-check flips _metSettings.enabled', () => {
     const { mod, doc } = setupPopoverTest();
     const check = doc.getElementById('met-enabled-check');

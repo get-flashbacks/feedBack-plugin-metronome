@@ -15,3 +15,4 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/2.0.0/),
 
 - Re-injecting the button on a page that still has the pre-consolidation two-button DOM (e.g. a stale tab that hasn't reloaded since an update) now correctly detects and replaces it, instead of misreading the old text toggle as the new consolidated button.
 - Re-injecting the button when the consolidated control is missing its popover now rebuilds the complete control instead of leaving the settings icon unusable.
+- Re-injecting on a page still carrying the released 1.0.1 DOM now removes the legacy volume/flash/subdivision/count-in controls it appended directly to the controls bar, instead of stranding them below the new popover-backed controls.
