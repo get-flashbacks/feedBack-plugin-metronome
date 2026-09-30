@@ -1,4 +1,5 @@
 # Group minor/patch version updates to limit PR noise.
+# Grouping is forward-looking for action refs that currently float on major tags.
 # Monthly checks; major updates remain outside the minor/patch groups.
 # Groups apply to version updates, not security updates or automatic merging.
 version: 2
